@@ -60,43 +60,46 @@ public class ImportadorSpark {
 		return DataTypes.createStructType(fields);
 	}
 
-	public static void main(String[] args) {
-		String logFile = "file:///tmp/data/Parking_Citations.csv";
+	public static void main(String[] csvFiles) {
 		SparkConf sparkConf = new SparkConf().setAppName("Importador CSV").setMaster("local[*]");
 		JavaSparkContext sc = new JavaSparkContext(sparkConf);
  
 		SQLContext sqlContext = new SQLContext(sc);
 		
-		//1ª parte - Inferencia de tipos
-		DataFrame df = sqlContext.read()
-				.format("com.databricks.spark.csv")
-				.option("header", "true")
-				.load(logFile);
-
-
-		long now = System.currentTimeMillis();
-		System.out.println(df.count());
-		RecordTypeInference recordTypeInference = df
-				.javaRDD().sample(false, 0.05) //Processa apenas uma amostra pequenina
-				.map(ImportadorSpark::rowToStrings)
-				.mapPartitions((it) -> Arrays.asList(new RecordTypeInference(it)))
-				.reduce(RecordTypeInference::merge);
-		
-		List<ColumnType> columnTypes = recordTypeInference.guessColumnTypes();
-		System.out.println("Inferencia de tipos concluida em " + (System.currentTimeMillis() - now) + "ms");
-		System.out.println(columnTypes);
-		
-		//2ª parte - conversão e salvamento no Mongo
-		
-		now = System.currentTimeMillis();
-		StructType sparkSchema = createSparkSchema(df.schema(), columnTypes);
-		DataFrame convertedData = sqlContext.createDataFrame(df.javaRDD().map((v) -> ImportadorSpark.applySchema(v, columnTypes)), sparkSchema);
-		convertedData.write()
-				.format("com.stratio.datasource.mongodb")
-				.option("host", "localhost:27017")
-				.option("database", "spark")
-				.mode(SaveMode.Overwrite)
-				.option("collection", "meh").save();
-		System.out.println("Exportação para Mongo concluida em " + (System.currentTimeMillis() - now) + "ms");
+		for (String csvFile : csvFiles) {
+			System.out.println("Processando: " + csvFile);
+			
+			//1ª parte - Inferencia de tipos
+			DataFrame df = sqlContext.read()
+					.format("com.databricks.spark.csv")
+					.option("header", "true")
+					.load(csvFile).cache().sample(false, 0.1);
+	
+	
+			long now = System.currentTimeMillis();
+			System.out.println(df.count());
+			RecordTypeInference recordTypeInference = df
+					.javaRDD().sample(false, 0.05) //Processa apenas uma amostra pequenina
+					.map(ImportadorSpark::rowToStrings)
+					.mapPartitions((it) -> Arrays.asList(new RecordTypeInference(it)))
+					.reduce(RecordTypeInference::merge);
+			
+			List<ColumnType> columnTypes = recordTypeInference.guessColumnTypes();
+			System.out.println("Inferencia de tipos concluida em " + (System.currentTimeMillis() - now) + "ms");
+			System.out.println(columnTypes);
+			
+			//2ª parte - conversão e salvamento no Mongo
+			
+			now = System.currentTimeMillis();
+			StructType sparkSchema = createSparkSchema(df.schema(), columnTypes);
+			DataFrame convertedData = sqlContext.createDataFrame(df.javaRDD().map((v) -> ImportadorSpark.applySchema(v, columnTypes)), sparkSchema);
+			convertedData.write()
+					.format("com.stratio.datasource.mongodb")
+					.option("host", "localhost:27017")
+					.option("database", "spark")
+					.mode(SaveMode.Overwrite)
+					.option("collection", csvFile).save();
+			System.out.println("Exportação para Mongo concluida em " + (System.currentTimeMillis() - now) + "ms");
+		}
 	}
 }
