@@ -36,7 +36,7 @@ public class RecordTypeInference implements Serializable {
 		for (RecordTypeInference value : values) {
 			for (int i=0; i<value.columns.size(); i++) {
 				if (i >= columns.size()) {
-					columns.add(new ArrayList<>());
+					columns.add(new ArrayList<ColumnTypeInference>());
 				}
 				columns.get(i).add(value.columns.get(i));
 			}

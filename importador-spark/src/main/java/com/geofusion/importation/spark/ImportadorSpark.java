@@ -68,18 +68,19 @@ public class ImportadorSpark {
 		
 		for (String csvFile : csvFiles) {
 			System.out.println("Processando: " + csvFile);
-			
+
+			long now = System.currentTimeMillis();
 			//1ª parte - Inferencia de tipos
 			DataFrame df = sqlContext.read()
 					.format("com.databricks.spark.csv")
 					.option("header", "true")
-					.load(csvFile).cache().sample(false, 0.1);
+					.load(csvFile).cache();
+			System.out.println("Arquivo com " + df.count() + " registros lido em " + (System.currentTimeMillis() - now) + "ms");	
 	
-	
-			long now = System.currentTimeMillis();
-			System.out.println(df.count());
+			now = System.currentTimeMillis();
 			RecordTypeInference recordTypeInference = df
-					.javaRDD().sample(false, 0.05) //Processa apenas uma amostra pequenina
+					.javaRDD()
+					.sample(false, 0.1) //Processa apenas uma amostra pequenina
 					.map(ImportadorSpark::rowToStrings)
 					.mapPartitions((it) -> Arrays.asList(new RecordTypeInference(it)))
 					.reduce(RecordTypeInference::merge);
@@ -100,6 +101,8 @@ public class ImportadorSpark {
 					.mode(SaveMode.Overwrite)
 					.option("collection", csvFile).save();
 			System.out.println("Exportação para Mongo concluida em " + (System.currentTimeMillis() - now) + "ms");
+			
+			df.unpersist();
 		}
 	}
 }
