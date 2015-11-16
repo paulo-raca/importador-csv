@@ -18,7 +18,7 @@ public class RecordTypeInference implements Serializable {
 		}
 	}
 	
-	public void digest(Iterable<String> values) {
+	public RecordTypeInference digest(Iterable<String> values) {
 		this.count++;
 		int i=0;
 		for (String value : values) {
@@ -28,23 +28,18 @@ public class RecordTypeInference implements Serializable {
 			columns.get(i).digest(value);
 			i++;
 		}
+		return this;
 	}
 	
-	public static RecordTypeInference merge(RecordTypeInference... values) {
-		RecordTypeInference ret = new RecordTypeInference();
-		List<List<ColumnTypeInference>> columns = new ArrayList<>();
-		for (RecordTypeInference value : values) {
-			for (int i=0; i<value.columns.size(); i++) {
-				if (i >= columns.size()) {
-					columns.add(new ArrayList<ColumnTypeInference>());
-				}
-				columns.get(i).add(value.columns.get(i));
+	public RecordTypeInference digest (RecordTypeInference other) {
+		this.count += other.count;
+		for (int i=0; i<other.columns.size(); i++) {
+			if (i >= this.columns.size()) {
+				this.columns.add(new ColumnTypeInference());
 			}
+			columns.get(i).digest(other.columns.get(i));
 		}
-		for (List<ColumnTypeInference> column : columns) {
-			ret.columns.add(ColumnTypeInference.merge(column));
-		}
-		return ret;
+		return this;
 	}
 
 	public List<ColumnType> guessColumnTypes() {

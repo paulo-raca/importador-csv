@@ -2,7 +2,6 @@ package com.geofusion.importation;
 
 import java.io.Serializable;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 
 @SuppressWarnings("serial")
@@ -16,24 +15,22 @@ public class ColumnTypeInference implements Serializable {
 		}
 	} 
 
-	public void digest(String value) {
+	public ColumnTypeInference digest(String value) {
 		this.count++;
 		for (ColumnType type : ColumnType.values()) {
 			if (type.match(value)) {
 				matches.put(type, matches.get(type) + 1L);
 			}
 		}
+		return this;
 	}
 	
-	public static ColumnTypeInference merge(List<ColumnTypeInference> values) {
-		ColumnTypeInference ret = new ColumnTypeInference();
-		for (ColumnTypeInference value : values) {
-			ret.count += value.count;
-			for (ColumnType type : ColumnType.values()) {
-				ret.matches.put(type, ret.matches.get(type) + value.matches.get(type));
-			}
+	public ColumnTypeInference digest(ColumnTypeInference other) {
+		this.count += other.count;
+		for (ColumnType type : ColumnType.values()) {
+			this.matches.put(type, this.matches.get(type) + other.matches.get(type));
 		}
-		return ret;
+		return this;
 	}
 	
 	public ColumnType guessColumnType() {

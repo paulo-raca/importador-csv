@@ -173,8 +173,8 @@ public class MultiFileParserSpout extends BaseRichSpout {
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declareStream("records", new Fields("mongoId", "record", "bytes"));
-		declarer.declareStream("flush", new Fields("mongoId"));
+		declarer.declareStream("records", new Fields("id", "record", "bytes"));
+		declarer.declareStream("flush", new Fields("id"));
 	}
 	
 	enum OpenFileState {

@@ -21,7 +21,7 @@ public class MongoId implements Serializable {
 	public Object get_id() {
 		return _id;
 	}	
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof MongoId) {
@@ -31,9 +31,13 @@ public class MongoId implements Serializable {
 			return false;
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		return (getDatabase().hashCode() * 997) ^ (getCollection().hashCode() * 503) ^ (_id.hashCode()*79);
+	}
+	@Override
+	public String toString() {
+		return getDatabase() + "/" + getCollection() + "/" + get_id();
 	}
 }

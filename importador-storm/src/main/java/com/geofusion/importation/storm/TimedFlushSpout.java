@@ -2,6 +2,7 @@ package com.geofusion.importation.storm;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -16,28 +17,52 @@ import backtype.storm.tuple.Fields;
 public class TimedFlushSpout extends BaseRichSpout {
 	long timeout;
 	private SpoutOutputCollector collector;
-	
-	public TimedFlushSpout(long timeout) {
+	private Semaphore semaphore;
+	private int numPhases;
+
+	public TimedFlushSpout(int numPhases, long timeout) {
+		this.numPhases = numPhases;
 		this.timeout = timeout;
 	}
-	
-    @SuppressWarnings("rawtypes")
+
+	@SuppressWarnings("rawtypes")
 	public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
-        this.collector = collector;
-    }
-    
+		this.collector = collector;
+		this.semaphore = new Semaphore(1);
+	}
+
 	@Override
 	public void nextTuple() {
-		try {
-			Thread.sleep(timeout);
-			collector.emit(Collections.emptyList());
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+		if (semaphore.tryAcquire()) {
+			try {
+				Thread.sleep(timeout);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			collector.emit("flush-1", Collections.emptyList(), 1);
 		}
 	}
-	
+
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declare(new Fields());
+		for (int i=0; i<=numPhases; i++) {
+			declarer.declareStream("flush-"+i, new Fields());
+		}
+	}
+
+	@Override
+	public void ack(Object msgId) {
+		int nextPhase = 1 + (Integer)msgId;
+		if (nextPhase <= this.numPhases) {
+			collector.emit("flush-"+nextPhase, Collections.emptyList(), nextPhase);
+		} else {
+			semaphore.release();
+		}
+	}
+	@Override
+	public void fail(Object msgId) {
+		//Too bad :/
+		//Whatever, try again later
+		semaphore.release();
 	}
 }

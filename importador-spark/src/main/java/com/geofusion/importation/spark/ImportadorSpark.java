@@ -83,7 +83,7 @@ public class ImportadorSpark {
 					.sample(false, 0.1) //Processa apenas uma amostra pequenina
 					.map(ImportadorSpark::rowToStrings)
 					.mapPartitions((it) -> Arrays.asList(new RecordTypeInference(it)))
-					.reduce(RecordTypeInference::merge);
+					.reduce((a,b) -> new RecordTypeInference().digest(a).digest(b));
 			
 			List<ColumnType> columnTypes = recordTypeInference.guessColumnTypes();
 			System.out.println("Inferencia de tipos concluida em " + (System.currentTimeMillis() - now) + "ms");
